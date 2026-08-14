@@ -82,7 +82,6 @@ npm run dev
 Usamos `.env` (vía `dotenv`) en vez de variables inline (`VAR=x npm run dev`) porque esa
 sintaxis no funciona en PowerShell/cmd — solo en shells POSIX. Si falta alguna variable
 requerida, el servidor lo dice explícitamente al arrancar y no continúa.
-```
 
 ### Pruebas
 
@@ -130,8 +129,15 @@ DynamoDB + S3 + Lambda + API Gateway + IAM).
 - Validación de esquema (Zod) en el servidor para *todos* los inputs — el cliente valida
   para dar feedback rápido, pero el servidor es la fuente de verdad.
 - Contraseñas con `bcrypt` (factor 10), nunca en texto plano ni logueadas.
-- IAM de mínimo privilegio: cada Lambda solo tiene permisos sobre su propia tabla/bucket
-  (`grantReadWriteData`, `grantPut`/`grantRead` puntual).
+- IAM de mínimo privilegio **en tiempo de ejecución**: cada Lambda solo tiene permisos
+  sobre su propia tabla/bucket (`grantReadWriteData`, `grantPut`/`grantRead` puntual) —
+  ninguna tiene `AdministratorAccess` ni acceso a recursos que no le corresponden.
+- El usuario IAM usado **para desplegar** (`aws configure` en la laptop, el que corre
+  `cdk deploy`) sí tiene `AdministratorAccess`, porque CDK necesita crear roles, políticas
+  y recursos de varios servicios. Es un trade-off consciente para una cuenta personal de
+  un solo desarrollador bajo esta fecha límite — en un equipo real ese usuario de deploy
+  también se limitaría (p. ej. vía un rol de CI/CD con permisos acotados a los servicios
+  que la stack usa).
 - Nada de credenciales ni secretos versionados; el secreto JWT se genera en cada
   `cdk deploy`, no vive en el repo.
 

@@ -1,6 +1,7 @@
 node_modules/
 dist/
 cdk.out/
+infra/outputs.json
 *.log
 .env
 .env.local
