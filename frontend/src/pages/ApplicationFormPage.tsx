@@ -194,7 +194,13 @@ export function ApplicationFormPage() {
         {errorMessage && (
           <div className="error-banner">
             <p>{errorMessage}</p>
-            <button type="button" onClick={() => setPhase("idle")}>
+            <button
+              type="button"
+              onClick={() => {
+                setPhase("idle");
+                setErrorMessage(null);
+              }}
+            >
               Reintentar
             </button>
           </div>

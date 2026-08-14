@@ -79,13 +79,23 @@ export class EducacionEstrellaStack extends cdk.Stack {
     });
 
     // ---------------------------------------------------------------------
-    // Auth secret: a fresh random value generated at synth time and injected
-    // as a Lambda env var (encrypted at rest by Lambda's default AWS-managed
-    // KMS key, at no cost). Secrets Manager would be the more rotation-
-    // friendly choice but isn't free tier after the first 30 days; documented
-    // as a "would change with more budget/time" trade-off in the README.
+    // Auth secret, injected as a Lambda env var (encrypted at rest by
+    // Lambda's default AWS-managed KMS key, at no cost). Derived
+    // deterministically from the account + stack name + a fixed salt (SHA-256)
+    // rather than `crypto.randomBytes` at synth time: a random value was
+    // regenerated on *every* `cdk deploy` — including deploys that only
+    // touched Lambda code — silently invalidating every existing session
+    // cookie each time (found by testing: a deploy for an unrelated bug fix
+    // logged out an active session). Deterministic derivation keeps the same
+    // secret across deploys while staying free. Secrets Manager would be the
+    // more rotation-friendly choice but isn't free tier after the first 30
+    // days; still documented as a "would change with more budget/time"
+    // trade-off in the README.
     // ---------------------------------------------------------------------
-    const jwtSecret = crypto.randomBytes(48).toString("hex");
+    const jwtSecret = crypto
+      .createHash("sha256")
+      .update(`${this.account}:${this.stackName}:educacion-estrella-jwt-v1`)
+      .digest("hex");
 
     // CORS is handled entirely by the HTTP API's corsPreflight config below,
     // not by the Lambdas, so JWT_SECRET is the only var shared by both.

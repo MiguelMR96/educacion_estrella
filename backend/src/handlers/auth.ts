@@ -17,8 +17,13 @@ export async function handler(event: APIGatewayProxyEventV2): Promise<APIGateway
     const method = event.requestContext.http.method;
     const path = event.requestContext.http.path;
 
-    if (method === "POST" && path.endsWith("/auth/register")) return register(event);
-    if (method === "POST" && path.endsWith("/auth/login")) return login(event);
+    // `await` here (not just `return fn(event)`) matters: without it, a
+    // rejection thrown after the function's first `await` happens outside
+    // this try block's synchronous execution, so `catch` never sees it — it
+    // surfaces as an unhandled Lambda error (API Gateway 500) instead of the
+    // clean 4xx JSON response HttpError is meant to produce.
+    if (method === "POST" && path.endsWith("/auth/register")) return await register(event);
+    if (method === "POST" && path.endsWith("/auth/login")) return await login(event);
     if (method === "POST" && path.endsWith("/auth/logout")) return logout();
     if (method === "GET" && path.endsWith("/auth/me")) return me(event);
 

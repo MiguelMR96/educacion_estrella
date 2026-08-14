@@ -16,14 +16,17 @@ export async function handler(event: APIGatewayProxyEventV2): Promise<APIGateway
     const method = event.requestContext.http.method;
     const path = event.requestContext.http.path;
 
+    // `await` matters here: without it, a rejection thrown after the callee's
+    // first `await` lands outside this try block's synchronous execution and
+    // `catch` never sees it (see the identical fix/comment in handlers/auth.ts).
     if (method === "POST" && path.endsWith("/applications/upload-url")) {
-      return uploadUrl(event, session.sub);
+      return await uploadUrl(event, session.sub);
     }
     if (method === "POST" && path.endsWith("/applications")) {
-      return create(event, session.sub);
+      return await create(event, session.sub);
     }
     if (method === "GET" && path.endsWith("/applications")) {
-      return list(session.sub);
+      return await list(session.sub);
     }
 
     return json(404, { error: "Not found" });
