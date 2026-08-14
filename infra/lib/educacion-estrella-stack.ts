@@ -87,8 +87,9 @@ export class EducacionEstrellaStack extends cdk.Stack {
     // ---------------------------------------------------------------------
     const jwtSecret = crypto.randomBytes(48).toString("hex");
 
+    // CORS is handled entirely by the HTTP API's corsPreflight config below,
+    // not by the Lambdas, so JWT_SECRET is the only var shared by both.
     const commonEnv = {
-      CORS_ORIGIN: frontendOrigin,
       JWT_SECRET: jwtSecret,
     };
 

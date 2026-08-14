@@ -7,16 +7,23 @@ export class ApiError extends Error {
 }
 
 async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> {
-  const res = await fetch(`${API_URL}${path}`, {
-    ...options,
-    credentials: "include",
-    headers: { "Content-Type": "application/json", ...options.headers },
-  });
+  let res: Response;
+  try {
+    res = await fetch(`${API_URL}${path}`, {
+      ...options,
+      credentials: "include",
+      headers: { "Content-Type": "application/json", ...options.headers },
+    });
+  } catch (err) {
+    console.error(`No se pudo contactar la API en ${API_URL}${path}`, err);
+    throw new ApiError(`No se pudo conectar con el servidor (${API_URL})`, 0);
+  }
 
   const isJson = res.headers.get("content-type")?.includes("application/json");
   const data = isJson ? await res.json() : undefined;
 
   if (!res.ok) {
+    console.error(`API ${path} devolvió ${res.status}`, data);
     throw new ApiError(data?.error ?? `Error ${res.status}`, res.status, data?.details);
   }
   return data as T;

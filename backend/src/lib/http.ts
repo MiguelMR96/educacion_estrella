@@ -1,6 +1,10 @@
 import type { APIGatewayProxyResultV2 } from "aws-lambda";
-import { env } from "./env";
 
+// CORS headers are NOT set here: API Gateway's HTTP API CORS config (see the
+// CDK stack) already decorates every response, and the local Express server
+// (local.ts) sets them itself. Setting them a third time here would require
+// CORS_ORIGIN even on error responses (it used to, and crashed local dev when
+// that var wasn't set) and risks conflicting/duplicate headers in prod.
 export function json(
   statusCode: number,
   body: unknown,
@@ -8,11 +12,7 @@ export function json(
 ): APIGatewayProxyResultV2 {
   return {
     statusCode,
-    headers: {
-      "Content-Type": "application/json",
-      "Access-Control-Allow-Origin": env.corsOrigin,
-      "Access-Control-Allow-Credentials": "true",
-    },
+    headers: { "Content-Type": "application/json" },
     cookies: opts.cookies,
     body: JSON.stringify(body),
   };

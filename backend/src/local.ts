@@ -2,6 +2,9 @@
 // (v2) event shape so the exact same Lambda handlers run locally and in AWS.
 // Requires AWS credentials in the environment (e.g. `aws configure`) since it
 // still talks to real DynamoDB tables / S3 bucket — see README for setup.
+import * as dotenv from "dotenv";
+dotenv.config();
+
 import express from "express";
 import cookieParser from "cookie-parser";
 import type { APIGatewayProxyEventV2 } from "aws-lambda";
@@ -9,6 +12,17 @@ import { handler as authHandler } from "./handlers/auth";
 import { handler as applicationsHandler } from "./handlers/applications";
 
 process.env.LOCAL_DEV = "1";
+
+// Fail fast with one clear message instead of crashing mid-request the first
+// time a handler touches a missing var (which is what used to happen).
+const REQUIRED_VARS = ["USERS_TABLE", "APPLICATIONS_TABLE", "VIDEOS_BUCKET", "JWT_SECRET"];
+const missing = REQUIRED_VARS.filter((name) => !process.env[name]);
+if (missing.length > 0) {
+  console.error(`Faltan variables de entorno: ${missing.join(", ")}`);
+  console.error("Copia backend/.env.example a backend/.env y complétalo con los nombres reales");
+  console.error("(los ves en la salida de `cdk deploy` o en la consola de Lambda > Configuration > Environment variables).");
+  process.exit(1);
+}
 
 const app = express();
 app.use(express.json({ limit: "1mb" }));

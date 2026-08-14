@@ -68,15 +68,20 @@ local a esos recursos.
 # Backend (puerto 3001)
 cd backend
 npm install
-USERS_TABLE=<tabla-users> APPLICATIONS_TABLE=<tabla-applications> \
-  VIDEOS_BUCKET=<bucket-videos> CORS_ORIGIN=http://localhost:5173 \
-  npm run dev
+cp .env.example .env   # completa USERS_TABLE / APPLICATIONS_TABLE / VIDEOS_BUCKET
+                        # con los nombres reales que imprime `cdk deploy`
+npm run dev
 
 # Frontend (puerto 5173), en otra terminal
 cd frontend
 npm install
 cp .env.example .env.local   # VITE_API_URL=http://localhost:3001
 npm run dev
+```
+
+Usamos `.env` (vía `dotenv`) en vez de variables inline (`VAR=x npm run dev`) porque esa
+sintaxis no funciona en PowerShell/cmd — solo en shells POSIX. Si falta alguna variable
+requerida, el servidor lo dice explícitamente al arrancar y no continúa.
 ```
 
 ### Pruebas

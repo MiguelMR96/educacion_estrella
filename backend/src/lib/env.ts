@@ -17,7 +17,4 @@ export const env = {
   get jwtSecret() {
     return required("JWT_SECRET");
   },
-  get corsOrigin() {
-    return required("CORS_ORIGIN");
-  },
 };
