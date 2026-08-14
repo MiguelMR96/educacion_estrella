@@ -138,8 +138,9 @@ DynamoDB + S3 + Lambda + API Gateway + IAM).
   un solo desarrollador bajo esta fecha límite — en un equipo real ese usuario de deploy
   también se limitaría (p. ej. vía un rol de CI/CD con permisos acotados a los servicios
   que la stack usa).
-- Nada de credenciales ni secretos versionados; el secreto JWT se genera en cada
-  `cdk deploy`, no vive en el repo.
+- Nada de credenciales ni secretos versionados; el secreto JWT se deriva de forma
+  determinística en cada `cdk deploy` (mismo valor siempre, ver sección 4), no vive
+  en el repo ni en ningún archivo versionado.
 
 ## 6. Limitaciones conocidas y qué haría distinto con más tiempo
 
