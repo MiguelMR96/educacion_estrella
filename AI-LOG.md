@@ -19,9 +19,15 @@ decidir por su cuenta:
 
 Esto me pareció el comportamiento correcto: no adivinó credenciales ni intentó rutas que
 no podía verificar, y todo lo demás (stack, lenguaje, Lambda vs. contenedor, Cognito vs.
-JWT propio, DynamoDB vs. RDS) lo decidió y lo justificó por escrito en el README en vez de
-preguntarme — que es exactamente lo que pide el enunciado ("documenta tu interpretación y
-sigue adelante").
+JWT propio, DynamoDB vs. RDS) lo propuso y lo justificó por escrito en el README primero,
+en vez de bloquearse preguntándome cada cosa — que es lo que pide el enunciado ("documenta
+tu interpretación y sigue adelante").
+
+Esa fue la mecánica de toda la sesión, no solo del arranque: Claude Code proponía y
+justificaba por escrito, y **yo revisaba, cuestionaba o confirmaba cada decisión después**
+— no acepté ninguna a la primera sin entenderla. La sección "Qué revisé/cuestioné yo" más
+abajo es la evidencia de eso, no una formalidad: son preguntas que le hice yo mismo,
+en tiempo real, antes de dar por buena cada decisión.
 
 ## Qué construyó y en qué orden
 
@@ -96,6 +102,15 @@ app de verdad contra AWS real, no en pruebas locales ni en `cdk synth`.
   sí lo tiene (CDK necesita crear roles de varios servicios), pero cada Lambda en tiempo de
   ejecución tiene permisos acotados a su propia tabla/bucket — le pedí que esa distinción
   quedara documentada explícitamente en el README, no dada por sentada.
+- **Cuestioné Lambda vs. Elastic Beanstalk**: le pregunté directamente por qué no un servidor
+  tradicional, que es lo que más conozco. Me llevó a entender que el argumento correcto no es
+  "estabilidad" ni "escala" (Lambda escala solo, sin balanceador que yo configure) sino
+  **costo**: con tráfico sostenido y alto, un servidor prendido 24/7 puede salir más barato
+  por request que pagar cada invocación — ese es el único caso real en el que cambiaría.
+- **Decidí yo el repo público**: sin el usuario de GitHub del evaluador a la mano, un repo
+  privado con colaborador pendiente de aceptar invitación era un riesgo real de bloqueo antes
+  de la entrega. Evalué el trade-off (no hay secretos versionados que proteger) y decidí
+  público para eliminar esa dependencia.
 
 ## Estado final
 
