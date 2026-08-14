@@ -6,7 +6,7 @@ y por qué, y qué decisiones tomé yo conscientemente en vez de aceptar la prop
 
 ## Punto de partida
 
-Le pasé el markdown del enunciado completo y le pedí construir el proyecto de punta a
+Le pasé el PDF/markdown del enunciado completo y le pedí construir el proyecto de punta a
 punta: autenticación, formulario con subida de video, consulta de solicitudes, backend
 Lambda, infraestructura como código, y los entregables (README, este log). Antes de
 escribir código, Claude Code preguntó tres cosas que sí eran bloqueantes y no podía
@@ -17,10 +17,11 @@ decidir por su cuenta:
    todo primero y dejáramos el despliegue real para el final.
 3. Que no tenía `gh` instalado — decidí crear el repo de GitHub yo mismo manualmente.
 
-Todo lo demás (stack, lenguaje, Lambda vs. contenedor, Cognito vs. JWT propio, DynamoDB
-vs. RDS) lo decidió y lo justificó por escrito en el README en vez de preguntarme — que es
-lo que pide el enunciado ("documenta tu interpretación y sigue adelante"). Yo revisé esas
-decisiones después, no antes.
+Esto me pareció el comportamiento correcto: no adivinó credenciales ni intentó rutas que
+no podía verificar, y todo lo demás (stack, lenguaje, Lambda vs. contenedor, Cognito vs.
+JWT propio, DynamoDB vs. RDS) lo decidió y lo justificó por escrito en el README en vez de
+preguntarme — que es exactamente lo que pide el enunciado ("documenta tu interpretación y
+sigue adelante").
 
 ## Qué construyó y en qué orden
 
