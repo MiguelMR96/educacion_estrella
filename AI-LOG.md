@@ -1,13 +1,12 @@
 # Bitácora de trabajo con IA
 
-Todo el desarrollo se hizo con **Claude Code**, en una sesión de trabajo enfocada, con el
-enunciado de la prueba como único input inicial. Documento aquí qué se pidió, qué no
-funcionó a la primera, qué se corrigió y por qué, y qué decisiones tomó la IA que yo
-tuve que revisar/aceptar conscientemente.
+Todo el desarrollo se hizo con **Claude Code**, con el enunciado de la prueba como único
+input inicial. Documento aquí qué se pidió, qué no funcionó a la primera, qué se corrigió
+y por qué, y qué decisiones tomé yo conscientemente en vez de aceptar la propuesta inicial.
 
 ## Punto de partida
 
-Le pasé el PDF/markdown del enunciado completo y le pedí construir el proyecto de punta a
+Le pasé el markdown del enunciado completo y le pedí construir el proyecto de punta a
 punta: autenticación, formulario con subida de video, consulta de solicitudes, backend
 Lambda, infraestructura como código, y los entregables (README, este log). Antes de
 escribir código, Claude Code preguntó tres cosas que sí eran bloqueantes y no podía
@@ -18,68 +17,96 @@ decidir por su cuenta:
    todo primero y dejáramos el despliegue real para el final.
 3. Que no tenía `gh` instalado — decidí crear el repo de GitHub yo mismo manualmente.
 
-Esto me pareció el comportamiento correcto: no adivinó credenciales ni intentó rutas que
-no podía verificar, y todo lo demás (stack, lenguaje, Lambda vs. contenedor, Cognito vs.
-JWT propio, DynamoDB vs. RDS) lo decidió y lo justificó por escrito en el README en vez de
-preguntarme — que es exactamente lo que pide el enunciado ("documenta tu interpretación y
-sigue adelante").
+Todo lo demás (stack, lenguaje, Lambda vs. contenedor, Cognito vs. JWT propio, DynamoDB
+vs. RDS) lo decidió y lo justificó por escrito en el README en vez de preguntarme — que es
+lo que pide el enunciado ("documenta tu interpretación y sigue adelante"). Yo revisé esas
+decisiones después, no antes.
 
 ## Qué construyó y en qué orden
 
-Backend (Node/TS, Lambda) → infraestructura (CDK) → frontend (React/Vite) → verificación →
-documentación. Trabajó con una lista de tareas explícita (auth handler, applications
-handler, dev server, CDK stack, frontend, docs) y fue marcando cada una según avanzaba,
-lo cual hizo fácil verificar que no se saltara nada del alcance.
+Backend (Node/TS, Lambda) → infraestructura (CDK) → frontend (React/Vite) → despliegue real
+en mi cuenta de AWS → verificación end-to-end en el navegador contra esa infraestructura →
+documentación.
 
-## Dónde su primera propuesta no funcionó
+## Bugs reales encontrados — antes de desplegar
 
-- **Bundling de Lambda con CDK**: al correr `cdk synth`, `NodejsFunction` falló con
-  `PathNotUnderRoot` porque el código del backend vive en `backend/` y el proyecto CDK en
-  `infra/` — carpetas hermanas, no una dentro de otra. La causa es que CDK infiere el
-  `projectRoot` a partir de dónde corre `cdk`, y el entry point del Lambda quedaba fuera de
-  ese árbol. Se corrigió pasando `projectRoot` y `depsLockFilePath` explícitos apuntando a
-  `backend/`. No lo detecté yo — lo encontró la propia ejecución de `cdk synth`, que
-  Claude Code corrió proactivamente antes de darlo por terminado.
-- **Región por defecto equivocada**: el `cdk synth` inicial generó recursos en
-  `us-west-2` en vez de `us-east-1` (la región sugerida por el enunciado), porque el
-  código usaba `process.env.CDK_DEFAULT_REGION` y mi perfil local de AWS tiene esa región
-  por defecto. Se corrigió fijando `us-east-1` de forma explícita en `bin/app.ts` en vez de
-  heredar el perfil local — importante para que el despliegue sea reproducible sin
-  importar en qué máquina se corra.
-- **Servidor local de desarrollo**: el wrapper de Express que reusa los mismos handlers de
-  Lambda (`backend/src/local.ts`) tenía un error de tipos (llamaba al handler con 3
-  argumentos cuando el tipo inferido solo aceptaba 1) — típico de adaptar una firma de
-  Lambda a una firma de Express a mano. Se corrigió eliminando los argumentos de más.
-- **Cookie de sesión en desarrollo local**: la cookie de sesión se diseñó
-  `SameSite=None; Secure` (necesario en producción porque el frontend y la API viven en
-  dominios distintos), pero eso hace que el navegador la descarte silenciosamente cuando
-  el API local corre sobre HTTP plano en `localhost`. Se agregó un flag `LOCAL_DEV` que
-  relaja a `SameSite=Lax` sin `Secure` solo en desarrollo — decisión que yo verifiqué
-  tiene sentido: es la única diferencia de comportamiento entre entornos y está aislada en
-  un solo lugar (`backend/src/lib/auth.ts`).
+Estos salieron corriendo `cdk synth`, tests y typecheck localmente, antes de tener
+credenciales de AWS:
 
-## Qué revisé/descarté yo
+- **Bundling de Lambda con CDK**: `NodejsFunction` fallaba con `PathNotUnderRoot` porque el
+  código del backend vive en `backend/` y el proyecto CDK en `infra/` — carpetas hermanas,
+  no una dentro de otra. Se corrigió pasando `projectRoot` y `depsLockFilePath` explícitos.
+- **Región por defecto equivocada**: el synth generaba recursos en `us-west-2` (la región
+  por defecto de mi perfil de AWS) en vez de `us-east-1` (la que sugiere el enunciado). Se
+  fijó explícitamente en `bin/app.ts` en vez de heredar el perfil local, para que el deploy
+  sea reproducible sin importar la máquina.
+- **Servidor local de desarrollo**: el wrapper de Express que reusa los handlers de Lambda
+  tenía un error de tipos al invocar el handler. Se corrigió el llamado.
+- **Cookie de sesión en local**: la cookie está pensada como `SameSite=None; Secure`
+  (necesaria en producción porque frontend y API viven en dominios distintos), pero el
+  navegador la descarta silenciosamente sobre HTTP plano en `localhost`. Se agregó un flag
+  que relaja esto solo en desarrollo.
 
-- Verifiqué que el bucket de videos tenga `BlockPublicAccess.BLOCK_ALL` y que el único
-  camino de escritura sea una URL prefirmada de 5 minutos — es la señal de seguridad más
-  penalizada según el enunciado, así que la revisé línea por línea en vez de asumir que
-  estaba bien.
-- Cuestioné la elección inicial de subir el video a través de Lambda; Claude Code ya lo
-  había descartado de entrada por el límite de payload de API Gateway (10 MB) y propuso
-  presigned POST directo a S3 con validación de tamaño/tipo vía condiciones de la policy
-  — lo acepté porque es la forma estándar de resolver esto y es defendible en la
-  entrevista.
-- Decidí no usar Cognito para no introducir una pieza de configuración (user pools, app
-  clients) que no iba a poder explicar con la misma profundidad que un JWT propio escrito
-  a mano.
+## Bugs reales encontrados — probando la app ya desplegada
 
-## Lo que falta (honesto, no maquillado)
+Esta fue la parte más valiosa de la sesión: varios de estos solo aparecieron al usar la
+app de verdad contra AWS real, no en pruebas locales ni en `cdk synth`.
 
-- **Despliegue real a AWS**: al momento de escribir esto, el código está completo y
-  verificado localmente (`cdk synth`, tests, typecheck, y el frontend probado en
-  navegador), pero el despliegue real con `./deploy.sh` requiere credenciales válidas de
-  AWS que configuraré antes de la entrega.
-- **Flujo end-to-end contra AWS real**: login → subir video → ver solicitud no se pudo
-  probar contra DynamoDB/S3 reales en esta sesión por la misma razón (sin credenciales
-  válidas); sí se verificó cada pieza por separado (tests del backend, render del
-  frontend, `cdk synth` limpio).
+- **Login/registro devolvía 500 en vez de un error controlado.** Causa raíz: en
+  `handlers/auth.ts` y `handlers/applications.ts`, las rutas hacían `return login(event)`
+  en vez de `return await login(event)` dentro del `try`. Como `login()` es `async`,
+  retornar la promesa sin esperarla hace que el `catch` del handler no alcance a atrapar un
+  error lanzado después del primer `await` interno — la excepción se escapa como fallo no
+  controlado de Lambda (que API Gateway convierte en 500) en vez del JSON 401/400 esperado.
+  Lo encontré probando login con contraseña incorrecta y viendo un 500 en vez del mensaje
+  de error. Confirmé la causa leyendo los logs de CloudWatch, y verificamos el fix con una
+  prueba que falla contra el código viejo y pasa contra el nuevo.
+- **El secreto JWT se regeneraba en cada `cdk deploy`**, incluso en deploys que no tocaban
+  nada relacionado con autenticación. Estaba generado con `crypto.randomBytes` en tiempo de
+  síntesis de CDK, así que cada deploy invalidaba silenciosamente todas las sesiones
+  activas. Lo descubrí porque, al redesplegar el fix anterior, mi propia sesión de prueba
+  quedó inválida a mitad de la verificación. Se cambió a una derivación determinística
+  (hash de cuenta + nombre del stack + un salt fijo), verificada corriendo `cdk synth` dos
+  veces y comparando que el valor generado sea idéntico.
+- **El botón "Reintentar" del formulario no hacía nada visible.** Solo cambiaba una
+  variable de fase interna pero nunca limpiaba el mensaje de error, así que el banner rojo
+  se quedaba en pantalla para siempre y no se reintentaba nada. Se corrigió para que
+  también limpie el estado de error.
+- **CORS duplicado en tres capas** (API Gateway, el servidor local de Express, y los
+  propios Lambdas) causaba que, si faltaba una variable de entorno, el manejador de errores
+  necesitara esa misma variable para responder — un fallo en cascada. Se quitó el manejo de
+  CORS de los Lambdas, dejándolo solo donde realmente pertenece (API Gateway en producción,
+  Express en local).
+
+## Qué revisé/cuestioné yo
+
+- **DynamoDB vs. RDS**: le pregunté directamente por qué DynamoDB si yo conozco mucho mejor
+  RDS/SQL. Me explicó los patrones de acceso fijos de esta app, el problema de meter Lambda
+  en una VPC para hablar con RDS (NAT Gateway no es gratis), y que el Free Tier de RDS
+  caduca a los 12 meses mientras que el de DynamoDB on-demand no. Acepté el argumento, pero
+  fue una decisión que discutimos, no algo que yo aceptara sin más.
+- **Verifiqué en vivo, no solo leí el código**, que el bucket de videos sea realmente
+  privado: pedí el objeto sin credenciales directo a su URL de S3 y confirmé `403 Access
+  Denied`, además de revisar `BlockPublicAccess.BLOCK_ALL` con el CLI.
+- **Cuestioné cómo un analista vería el video** ya que no hay panel de administración
+  (fuera de alcance según el enunciado). La respuesta honesta: hoy nadie puede verlo desde
+  la app — solo alguien con acceso a la cuenta de AWS, vía consola o CLI.
+- **Le pedí que no usara `AdministratorAccess` sin explicarlo**: el usuario IAM que despliega
+  sí lo tiene (CDK necesita crear roles de varios servicios), pero cada Lambda en tiempo de
+  ejecución tiene permisos acotados a su propia tabla/bucket — le pedí que esa distinción
+  quedara documentada explícitamente en el README, no dada por sentada.
+
+## Estado final
+
+El código está desplegado y funcionando en AWS real (no es una demo local): registro,
+login, formulario con subida de video a S3 (validación de tipo/tamaño en cliente y
+servidor), listado de solicitudes, y logout, todo verificado contra DynamoDB/S3/Lambda/API
+Gateway reales, incluyendo los bugs encontrados y corregidos arriba.
+
+## Limitaciones conocidas
+
+- Sin panel de análisis/revisión de video (fuera de alcance explícito del enunciado).
+- Sesión sin revocación antes de su expiración (7 días) — ver README para el trade-off
+  completo.
+- Sin emulador local para DynamoDB/S3 — el desarrollo local requiere apuntar a recursos ya
+  desplegados en AWS.
